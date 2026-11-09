@@ -1,0 +1,26 @@
+# Ignore macOS system files everywhere
+.DS_Store
+**/.DS_Store
+**/.DS_Store?
+
+# Ignore all files by default
+*
+**/_*
+**/*
+!**/
+
+# Allow only these file types:
+!**/*.c
+!**/*.h
+!**/*.txt
+!**/*.md
+!**/*.sql
+!**/*.py
+!**/*.html
+!**/*.js
+!**/*.ts
+!**/*.jpg
+!**/*.bmp
+!**/*.png
+!**/*.gz
+!**/*.wav

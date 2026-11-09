@@ -1,20 +1,50 @@
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#define LAYERS_NUMBER 5
+#include "libraries/linear-algebra/matrices.h"
+#include "backpropagation.h"
 
 
-typedef struct NEURON {
-    double *weights;
-    double bias;
-} NEURON;
+// activation functions
+mat *step(mat *z) {
+    if (z->cols != 1) {
+        printf("Invalid vector.\n");
+        return NULL;
+    }
 
-typedef struct LAYER {
-    NEURON *neuron;
-    const unsigned int NUMBER_OF_NEURONS;
-} LAYER;
+    mat *return_vec = mat_init(z->rows, 1);
+    for (int i = 0, n = return_vec->rows; i < n; i++) {
+        mat_input( (mat_select(z, i, 0) >= 0) ? 1 : 0, i, 0, return_vec); 
+    }
+    return return_vec;
+}
 
-typedef struct network {
-    LAYER *layers;
-    const unsigned int NUMBER_OF_LAYERS;
-} network;
+mat *ReLU(mat *z) {
+    if (z->cols != 1) {
+        printf("Invalid vector.\n");
+        return NULL;
+    }
+
+    mat *return_vec = mat_init(z->rows, 1);
+    for (int i = 0, n = return_vec->rows; i < n; i++) {
+        mat_input( (mat_select(z, i, 0) >= 0) ? mat_select(z, i, 0) : 0, i, 0, return_vec); 
+    }
+    return return_vec;
+}
+
+mat *sigmoid(mat *z) {
+    if (z->cols != 1) {
+        printf("Invalid vector.\n");
+        return NULL;
+    }
+
+    mat *return_vec = mat_init(z->rows, 1);
+    for (int i = 0, n = return_vec->rows; i < n; i++) {
+        double selected_component = mat_select(z, i, 0);
+        mat_input(1.0 / (1.0 + exp(-selected_component)), i, 0, return_vec); 
+    }
+    return return_vec;
+}
+
+

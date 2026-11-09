@@ -14,6 +14,7 @@ mat *step(mat *z) {
     }
 
     mat *return_vec = mat_init(z->rows, 1);
+    if (!return_vec) return NULL;
     for (int i = 0, n = return_vec->rows; i < n; i++) {
         mat_input( (mat_select(z, i, 0) >= 0) ? 1 : 0, i, 0, return_vec); 
     }
@@ -27,6 +28,7 @@ mat *ReLU(mat *z) {
     }
 
     mat *return_vec = mat_init(z->rows, 1);
+    if (!return_vec) return NULL;
     for (int i = 0, n = return_vec->rows; i < n; i++) {
         mat_input( (mat_select(z, i, 0) >= 0) ? mat_select(z, i, 0) : 0, i, 0, return_vec); 
     }
@@ -40,6 +42,7 @@ mat *sigmoid(mat *z) {
     }
 
     mat *return_vec = mat_init(z->rows, 1);
+    if (!return_vec) return NULL;
     for (int i = 0, n = return_vec->rows; i < n; i++) {
         double selected_component = mat_select(z, i, 0);
         mat_input(1.0 / (1.0 + exp(-selected_component)), i, 0, return_vec); 

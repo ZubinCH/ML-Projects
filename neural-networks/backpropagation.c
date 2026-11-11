@@ -5,7 +5,6 @@
 #include "libraries/linear-algebra/matrices.h"
 #include "backpropagation.h"
 
-
 // activation functions
 mat *step(mat *z) {
     if (z->cols != 1) {

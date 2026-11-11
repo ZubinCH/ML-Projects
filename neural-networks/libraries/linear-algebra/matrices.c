@@ -89,6 +89,30 @@ double mat_select(mat *mt, size_t row, size_t col) {
     return mt->arr[row * mt->cols + col];
 }
 
+mat *mat_select_row(mat *mt, size_t row) {
+    int cols = mt->cols;
+    mat *mat_row = mat_init(1, cols);
+    if (!mat_row) return NULL;
+
+    for (int i = 0; i < cols; i++) {
+        mat_input(mat_select(mt, row, i), 0, i, mat_row);
+    }
+
+    return mat_row;
+}
+
+mat *mat_select_row(mat *mt, size_t col) {
+    int rows = mt->rows;
+    mat *mat_col = mat_init(rows, 1);
+    if (!mat_col) return NULL;
+
+    for (int i = 0; i < rows; i++) {
+        mat_input(mat_select(mt, col, i), 0, i, mat_col);
+    }
+
+    return mat_col;
+}
+
 
 mat *mat_add(mat *mtA, mat *mtB) {
     if (mtA->cols != mtB->cols || mtA->rows != mtB->rows) {
@@ -97,6 +121,7 @@ mat *mat_add(mat *mtA, mat *mtB) {
     }
 
     mat *mt_result = mat_init(mtA->rows, mtA->cols);
+    if (!mt_result) return NULL;
 
     for (int i = 0, m = mtA->rows; i < m; i++) {
         for (int j = 0, n = mtA->cols; j < n; j++) {
@@ -114,6 +139,7 @@ mat *mat_subtract(mat *mtA, mat *mtB) {
     }
 
     mat *mt_result = mat_init(mtA->rows, mtA->cols);
+    if (!mt_result) return NULL;
 
     for (int i = 0, m = mtA->rows; i < m; i++) {
         for (int j = 0, n = mtA->cols; j < n; j++) {
@@ -132,6 +158,7 @@ mat *mat_value_mult(mat *mtA, mat *mtB) {
     }
 
     mat *mt_result = mat_init(mtA->rows, mtA->cols);
+    if (!mt_result) return NULL;
 
     for (int i = 0, m = mtA->rows; i < m; i++) {
         for (int j = 0, n = mtA->cols; j < n; j++) {
@@ -145,6 +172,7 @@ mat *mat_value_mult(mat *mtA, mat *mtB) {
 
 mat *mat_scale(mat *mt, double scale_factor) {
     mat *mt_result = mat_init(mt->rows, mt->cols);
+    if (!mt_result) return NULL;
 
     for (int i = 0, m = mt->rows; i < m; i++) {
         for (int j = 0, n = mt->cols; j < n; j++) {
@@ -158,6 +186,7 @@ mat *mat_scale(mat *mt, double scale_factor) {
 
 mat *mat_transpose(mat *mt) {
     mat *mt_transposed = mat_init(mt->cols, mt->rows);
+    if (!mt_transposed) return NULL;
 
     for (int i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
         for (int j = 0; j < n; j++) {
@@ -175,6 +204,7 @@ mat *mat_mult(mat *mt1, mat *mt2) {
     }
     
     mat *mt_multiplied = mat_init(mt1->rows, mt2->cols);
+    if (!mt_multiplied) return NULL;
 
     size_t m = mt1->rows;
     size_t n = mt2->cols;
@@ -195,6 +225,8 @@ mat *mat_mult(mat *mt1, mat *mt2) {
 
 mat *mat_identity(size_t size) {
     mat *identity = mat_init(size, size);
+    if (!identity) return NULL;
+
     for (int i = 0; i < size; i++) {
         mat_input(1, i, i, identity);
     }
@@ -359,6 +391,7 @@ mat *vec_cross(mat *vecA, mat *vecB) {
     return NULL;
 
     mat *vec_result = mat_init(CROSS_PRODUCT_LENGTH, 1);
+    if (!vec_result) return NULL;
 
     vec_result->arr[0] = vecA->arr[1] * vecB->arr[2] - vecA->arr[2] * vecB->arr[1];
     vec_result->arr[1] = vecA->arr[2] * vecB->arr[0] - vecA->arr[0] * vecB->arr[2];

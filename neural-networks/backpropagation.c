@@ -15,7 +15,7 @@ mat *step(mat *z) {
     mat *return_vec = mat_init(z->rows, 1);
     if (!return_vec) return NULL;
     for (int i = 0, n = return_vec->rows; i < n; i++) {
-        mat_input( (mat_select(z, i, 0) >= 0) ? 1 : 0, i, 0, return_vec); 
+        mat_input((mat_select(z, i, 0) >= 0) ? 1 : 0, i, 0, return_vec); 
     }
     return return_vec;
 }
@@ -49,4 +49,32 @@ mat *sigmoid(mat *z) {
     return return_vec;
 }
 
+mat *mat_z(LAYER layer, double *input) { 
 
+
+}
+
+
+/*
+
+    Training with backpropagation pseudocode:
+    
+    Inputs: 
+        name of file with inputs
+        number of inputs
+        name of file with expected outputs
+        number of expected outputs
+        number of layers
+    END Inputs
+
+        Initialise the inputs matrix
+            Open FILE
+            
+        Initialise network struct
+
+
+
+
+
+        Return network 
+*/

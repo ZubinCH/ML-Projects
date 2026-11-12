@@ -9,10 +9,11 @@
 // structs
 
 typedef struct LAYER {
-    double *neuron;
-    mat *bias_vec;
+    mat *neuron;
+    mat *bias;
     mat *weights;
     const unsigned int NUMBER_OF_NEURONS;
+    const char ACTIVATION_FUNCTION;
 } LAYER;
 
 typedef struct network {

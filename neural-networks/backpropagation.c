@@ -172,15 +172,17 @@ void train(
         if (!expected_outputs_matrix) return;
         load_matrix_with_file(expected_outputs_matrix, expected_outputs_file);
 
-
+        // Initialise network
         LAYER *layer = malloc(NUMBER_OF_LAYERS * sizeof(LAYER));
+        for (size_t i = 0; i < NUMBER_OF_LAYERS; i++) {
+            layer[i].neuron_count = NUMBER_OF_NEURONS_PER_LAYER[i];
+            layer[i].neuron = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
+            layer[i].bias = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
+            if (i != 0) layer[i].weights = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], NUMBER_OF_NEURONS_PER_LAYER[i - 1]);
+        }
 
 
-
-
-
-
-
+        // Initialise derivative matrices and loop through training data
         mat ***weight_matrix_derivatives = (mat ***) malloc(NUMBER_OF_DATA * sizeof(mat **));
         mat ***bias_vector_derivatives = (mat ***) malloc(NUMBER_OF_DATA * sizeof(mat **));
 

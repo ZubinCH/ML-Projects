@@ -24,7 +24,7 @@ typedef struct mat_LU {
 // function prototypes
 
 double mat_select(mat *mt, size_t row, size_t col);
-mat *mat_select_row(mat *mt, size_t col);
+mat *mat_select_col(mat *mt, size_t col);
 mat *mat_select_row(mat *mt, size_t row);
 void mat_input(double value, size_t row, size_t col, mat *mt);
 

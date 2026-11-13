@@ -101,7 +101,7 @@ mat *mat_select_row(mat *mt, size_t row) {
     return mat_row;
 }
 
-mat *mat_select_row(mat *mt, size_t col) {
+mat *mat_select_col(mat *mt, size_t col) {
     int rows = mt->rows;
     mat *mat_col = mat_init(rows, 1);
     if (!mat_col) return NULL;
@@ -328,9 +328,7 @@ mat_LU *mat_LU_factorise(mat *mtA) {
     return factorised_matrices;
 }
 
-
-mat *mat_colA(mat *mt);
-mat *mat_solve(mat *mtA, mat *vecB);
+mat *mat_solve(mat *mt, mat *vecB);
 
 
 /* 

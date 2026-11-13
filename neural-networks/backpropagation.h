@@ -4,7 +4,8 @@
 #include <stddef.h>
 #include "libraries/linear-algebra/matrices.h"
 
-#define LAYERS_NUMBER 5
+#define MAX_LINE 2048
+#define LEARNING_RATE 0.0001
 
 // structs
 
@@ -12,14 +13,9 @@ typedef struct LAYER {
     mat *neuron;
     mat *bias;
     mat *weights;
-    const unsigned int NUMBER_OF_NEURONS;
-    const char ACTIVATION_FUNCTION;
+    size_t neuron_count;
+    char actvnfunc;
 } LAYER;
-
-typedef struct network {
-    LAYER *layer;
-    const unsigned int NUMBER_OF_LAYERS;
-} network;
 
 // prototypes
 
@@ -27,6 +23,7 @@ typedef struct network {
 mat *step(mat *z);
 mat *ReLU(mat *z);
 mat *sigmoid(mat *z);
+mat *sigmoid_derivative(mat *z);
 
 
 

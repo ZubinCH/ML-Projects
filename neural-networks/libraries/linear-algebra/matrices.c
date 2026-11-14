@@ -18,12 +18,12 @@ mat *mat_init(size_t rows, size_t cols) {
     }
 
     size_t total_elements = (size_t) rows * (size_t) cols;
-    double *array = calloc(total_elements, sizeof(double));
+    double *array = (double *) calloc(total_elements, sizeof(double));
     if (!array) {
         printf("Memory allocation failed 1.\n");
         return NULL;
     }
-    mat *mt = malloc(sizeof(mat));
+    mat *mt = (mat *) malloc(sizeof(mat));
     if (!mt) {
         printf("Failed memory allocation 2.\n");
         free(array);
@@ -312,7 +312,7 @@ mat_LU *mat_LU_factorise(mat *mtA) {
         }
     }
 
-    mat_LU *factorised_matrices = malloc(sizeof(mat_LU));
+    mat_LU *factorised_matrices = (mat_LU *) malloc(sizeof(mat_LU));
     if (!factorised_matrices) {
         printf("Memory allocation failed for mat_LU.\n");
         mat_free(mtL);

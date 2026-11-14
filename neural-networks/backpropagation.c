@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,45 +9,60 @@
 
 // activation functions
 mat *step(mat *z) {
-    mat *return_vec = mat_init(z->rows, 1);
-    if (!return_vec) return NULL;
+    size_t rows = z->rows;
+    size_t cols = z->cols;
 
-    for (int i = 0, n = return_vec->rows; i < n; i++) {
-        mat_input((mat_select(z, i, 0) >= 0) ? 1 : 0, i, 0, return_vec); 
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            if (!(mat_select(z, i, j) > 0)) mat_input(0, i, j, z);
+            else mat_input(1, i, j, z);
+        }
     }
-    return return_vec;
+
+    return z;
 }
 
 mat *ReLU(mat *z) {
-    mat *return_vec = mat_init(z->rows, 1);
-    if (!return_vec) return NULL;
+    size_t rows = z->rows;
+    size_t cols = z->cols;
 
-    for (int i = 0, n = return_vec->rows; i < n; i++) {
-        mat_input( (mat_select(z, i, 0) >= 0) ? mat_select(z, i, 0) : 0, i, 0, return_vec); 
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            if (!(mat_select(z, i, j) > 0)) mat_input(0, i, j, z);
+        }
     }
-    return return_vec;
+
+    return z;
 }
 
 mat *sigmoid(mat *z) {
-    mat *return_vec = mat_init(z->rows, 1);
-    if (!return_vec) return NULL;
+    size_t rows = z->rows;
+    size_t cols = z->cols;
 
-    for (int i = 0, n = return_vec->rows; i < n; i++) {
-        double selected_component = mat_select(z, i, 0);
-        mat_input(1.0 / (1.0 + exp(-selected_component)), i, 0, return_vec); 
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            double selected_component = mat_select(z, i, j);
+            double sigmoid_value = 1.0 / (1.0 + exp(-selected_component));
+            mat_input(sigmoid_value, i, j, z);
+        }
     }
-    return return_vec;
+
+    return z;
 }
 
 mat *sigmoid_derivative(mat *z) {
-    mat *return_vec = mat_init(z->rows, 1);
-    if (!return_vec) return NULL;
+    size_t rows = z->rows;
+    size_t cols = z->cols;
 
-    for (int i = 0, n = return_vec->rows; i < n; i++) {
-        double selected_component = mat_select(z, i, 0);
-        mat_input(exp(-selected_component) / ((1.0 + exp(-selected_component)) * (1.0 + exp(-selected_component))), i, 0, return_vec); 
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            double selected_component = mat_select(z, i, j);
+            double sigmoid_derivative_value = exp(-selected_component) / ((1.0 + exp(-selected_component)) * (1.0 + exp(-selected_component)));
+            mat_input(sigmoid_derivative_value, i, j, z);
+        }
     }
-    return return_vec;
+
+    return z;
 }
 
 mat *matZ(mat *inputs, LAYER *layer) {
@@ -70,7 +86,6 @@ mat *matZ(mat *inputs, LAYER *layer) {
 
 
 mat *activation_function(mat *z, char activation) {
-
     switch (activation) {
         case 's':
             return step(z);
@@ -88,7 +103,9 @@ mat *activation_function(mat *z, char activation) {
 mat *activation_function_derivative(mat *z, LAYER *layer) {
     switch (layer->actvnfunc) {
         case 's':
-            return mat_init(z->rows, z->cols);
+            mat *new_z = mat_init(z->rows, z->cols);
+            mat_free(z);
+            return new_z;
         case 'o':
             return sigmoid_derivative(z);
         case 'r':
@@ -124,7 +141,7 @@ void load_matrix_with_file(mat *mt, FILE *file) {
     }
 }
 
-void train(
+bool train(
     const size_t NUMBER_OF_INPUT_NEURONS, 
     const size_t NUMBER_OF_DATA, 
     const size_t NUMBER_OF_EXPECTED_OUTPUTS, 
@@ -141,57 +158,103 @@ void train(
         FILE *input_file = fopen(input_data, 'r');
         if (!input_file) {
             printf("Failed to open %s.\n", input_data);
-            return;
+            return false;
         }
 
         FILE *expected_outputs_file = fopen(expected_outputs, 'r');
         if (!expected_outputs_file) {
             printf("Failed to open %s.\n", expected_outputs);
-            return;
+            return false;
         }
 
         FILE *output_weights_file = fopen(output_weights, 'w');
         if (!output_weights_file) {
             printf("Failed to open %s.\n", output_weights);
-            return;
+            return false;
         }
 
         FILE *output_bias_file = fopen(output_bias, 'w');
         if (!output_bias_file) {
             printf("Failed to open %s.\n", output_bias);
-            return;
+            return false;
         }
 
         // Tokenise inputs and store into matrix
         mat *input_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_INPUT_NEURONS);
-        if (!input_matrix) return;
+        if (!input_matrix) return false;
         load_matrix_with_file(input_matrix, input_file);
 
         // Tokenise expected outputs and store into matrix
         mat *expected_outputs_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_EXPECTED_OUTPUTS);
-        if (!expected_outputs_matrix) return;
+        if (!expected_outputs_matrix) return false;
         load_matrix_with_file(expected_outputs_matrix, expected_outputs_file);
 
         // Initialise network
-        LAYER *layer = malloc(NUMBER_OF_LAYERS * sizeof(LAYER));
+        LAYER *layer = (LAYER *) malloc(NUMBER_OF_LAYERS * sizeof(LAYER));
+        if (!layer) {
+            printf("Failed to allocate memory for layer struct.\n");
+            return false;
+        }
+
+        // Initialise derivative sum matrices and loop through training data
+        mat **weight_matrix_derivative_sum = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
+        mat **bias_vector_derivative_sum = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
+        if (!weight_matrix_derivative_sum || !bias_vector_derivative_sum) {
+            printf("Failed to initialise derivative sum matrices.\n");
+            return false;
+        }
+
         for (size_t i = 0; i < NUMBER_OF_LAYERS; i++) {
             layer[i].neuron_count = NUMBER_OF_NEURONS_PER_LAYER[i];
             layer[i].neuron = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
-            layer[i].bias = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
-            if (i != 0) layer[i].weights = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], NUMBER_OF_NEURONS_PER_LAYER[i - 1]);
+            if (i != 0) {
+                layer[i].weights = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], NUMBER_OF_NEURONS_PER_LAYER[i - 1]);
+                layer[i].bias = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
+                weight_matrix_derivative_sum[i] = mat_copy(layer[i].weights);
+                bias_vector_derivative_sum[i] = mat_copy(layer[i].bias);
         }
+
+
+        /*
+        Choices for handling derivative matrices
+
+        Store each derivative matrix in a large mat ***
+        Keep a tally of the sum in a mat **
+
+
+        OR
+
+        Store each sum matrix in a mat **
+        Each loop i stores a new weight matrix derivative that is dynamically allocated in memory and then freed
+
+
+
+        */
 
 
         // Initialise derivative matrices and loop through training data
         mat ***weight_matrix_derivatives = (mat ***) malloc(NUMBER_OF_DATA * sizeof(mat **));
         mat ***bias_vector_derivatives = (mat ***) malloc(NUMBER_OF_DATA * sizeof(mat **));
+        if (!weight_matrix_derivatives || !bias_vector_derivatives) {
+            printf("Failed to initialise derivative matrices.\n");
+            return false;
+        }
 
         for (int i = 0; i < NUMBER_OF_DATA; i++) {
             weight_matrix_derivatives[i] = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
             bias_vector_derivatives[i] = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
+            if (!weight_matrix_derivatives[i] || bias_vector_derivatives[i]) {
+                printf("Failed to initialise derivative matrices.\n");
+                return false;
+            }
+
             for (int j = 0; j < NUMBER_OF_LAYERS; j++) {
-                weight_matrix_derivatives[i][j] = mat_init(thinker->layer[j]->weights->rows, thinker->layer[j]->weights->cols);
-                bias_vector_derivatives[i][j] = mat_init(thinker->layer[j]->NUMBER_OF_NEURONS, 1);
+                weight_matrix_derivatives[i][j] = mat_init(layer[j].weights->rows, layer[j].weights->cols);
+                bias_vector_derivatives[i][j] = mat_init(layer[j].neuron_count, 1);
+                if (!weight_matrix_derivatives[i][j] || !bias_vector_derivatives[i][j]) {
+                    printf("Failed to initialise derivatie matrices.\n");
+                    return false;
+                }
             }
         }
 

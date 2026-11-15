@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "backpropagation.h"
 #include "libraries/linear-algebra/matrices.h"
@@ -117,12 +118,18 @@ mat *activation_function_derivative(mat *z, LAYER *layer) {
     }
 }
 
-mat *initial_weights_selection(mat *weights, char choice) {
+void initial_weights_selection(mat *weights, double mean, double stdv) {
     size_t rows = weights->rows;
     size_t cols = weights->cols;
 
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            double value = normally_distributed_random_number(mean, stdv);
+            mat_input(value, i, j, weights);
+        }
+    }
 
-    return weights;
+    return;
 }
 
 void load_matrix_with_file(mat *mt, FILE *file) {
@@ -151,18 +158,19 @@ void load_matrix_with_file(mat *mt, FILE *file) {
 }
 
 bool train(
-    const size_t NUMBER_OF_INPUT_NEURONS, 
     const size_t NUMBER_OF_DATA, 
-    const size_t NUMBER_OF_EXPECTED_OUTPUTS, 
     const size_t NUMBER_OF_LAYERS,
-    const size_t *NUMBER_OF_NEURONS_PER_LAYER,
+    const size_t *NUMBER_OF_NEURONS_IN_LAYER,
+    const size_t NUMBER_OF_EXPECTED_OUTPUTS, 
+    const char *activation_function_choice,
     const char *input_data, 
     const char *expected_outputs, 
     const char *output_weights,
-    const char *output_bias,
-    const char *activation_function_choice
+    const char *output_bias
     ) 
     {
+        srand((unsigned int) time(NULL)); // set new seed for initialising matrices
+
         // Open files
         FILE *input_file = fopen(input_data, 'r');
         if (!input_file) {
@@ -189,7 +197,7 @@ bool train(
         }
 
         // Tokenise inputs and store into matrix
-        mat *input_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_INPUT_NEURONS);
+        mat *input_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_NEURONS_IN_LAYER[0]);
         if (!input_matrix) return false;
         load_matrix_with_file(input_matrix, input_file);
 
@@ -217,15 +225,17 @@ bool train(
         }
 
         for (size_t i = 0; i < NUMBER_OF_LAYERS; i++) {
-            layer[i].neuron_count = NUMBER_OF_NEURONS_PER_LAYER[i];
-            layer[i].neuron = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
+            layer[i].neuron_count = NUMBER_OF_NEURONS_IN_LAYER[i];
+            layer[i].neuron = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], 1);
             if (i != 0) {
-                layer[i].weights = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], NUMBER_OF_NEURONS_PER_LAYER[i - 1]);
-                layer[i].bias = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
+                layer[i].weights = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], NUMBER_OF_NEURONS_IN_LAYER[i - 1]);
+                layer[i].bias = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], 1);
                 weight_matrix_derivative_sum[i] = mat_copy(layer[i].weights);
                 bias_vector_derivative_sum[i] = mat_copy(layer[i].bias);
                 weight_matrix_derivative[i] = mat_copy(layer[i].weights);
                 bias_vector_derivative[i] = mat_copy(layer[i].bias);
+                initial_weights_selection(layer[i].weights, 0, 2.0 / sqrt((NUMBER_OF_NEURONS_IN_LAYER[0] + NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 1])));
+                initial_weights_selection(layer[i].bias, 0, 2.0 / sqrt((NUMBER_OF_NEURONS_IN_LAYER[0] + NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 1])));
             }
         }
 

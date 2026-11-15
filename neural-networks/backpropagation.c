@@ -4,8 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "libraries/linear-algebra/matrices.h"
 #include "backpropagation.h"
+#include "libraries/linear-algebra/matrices.h"
+#include "libraries/random-numbers/random_numbers.h"
 
 // activation functions
 mat *step(mat *z) {
@@ -116,6 +117,14 @@ mat *activation_function_derivative(mat *z, LAYER *layer) {
     }
 }
 
+mat *initial_weights_selection(mat *weights, char choice) {
+    size_t rows = weights->rows;
+    size_t cols = weights->cols;
+
+
+    return weights;
+}
+
 void load_matrix_with_file(mat *mt, FILE *file) {
     char line[MAX_LINE];
     size_t m_max = mt->rows;
@@ -151,7 +160,7 @@ bool train(
     const char *expected_outputs, 
     const char *output_weights,
     const char *output_bias,
-    const char activation_function_choice
+    const char *activation_function_choice
     ) 
     {
         // Open files
@@ -197,9 +206,12 @@ bool train(
         }
 
         // Initialise derivative sum matrices and loop through training data
+        mat **weight_matrix_derivative = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
+        mat **bias_vector_derivative = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
         mat **weight_matrix_derivative_sum = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
         mat **bias_vector_derivative_sum = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
-        if (!weight_matrix_derivative_sum || !bias_vector_derivative_sum) {
+        if (!weight_matrix_derivative_sum || !bias_vector_derivative_sum ||
+            !weight_matrix_derivative || !bias_vector_derivative) {
             printf("Failed to initialise derivative sum matrices.\n");
             return false;
         }
@@ -212,6 +224,9 @@ bool train(
                 layer[i].bias = mat_init(NUMBER_OF_NEURONS_PER_LAYER[i], 1);
                 weight_matrix_derivative_sum[i] = mat_copy(layer[i].weights);
                 bias_vector_derivative_sum[i] = mat_copy(layer[i].bias);
+                weight_matrix_derivative[i] = mat_copy(layer[i].weights);
+                bias_vector_derivative[i] = mat_copy(layer[i].bias);
+            }
         }
 
 
@@ -230,6 +245,15 @@ bool train(
 
 
         */
+
+
+
+        for (size_t i = 0; i < NUMBER_OF_DATA; i++) {
+
+
+
+
+        }
 
 
         // Initialise derivative matrices and loop through training data

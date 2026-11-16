@@ -5,6 +5,7 @@ Author: Zubin Chowdhury
 Purpose: Linear algebra library for performing matrix computations necessary in computer science and engineering.
 */
 
+#include <math.h>
 #include "matrices.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,11 +91,12 @@ double mat_select(mat *mt, size_t row, size_t col) {
 }
 
 mat *mat_select_row(mat *mt, size_t row) {
-    int cols = mt->cols;
+    size_t cols = mt->cols;
+
     mat *mat_row = mat_init(1, cols);
     if (!mat_row) return NULL;
 
-    for (int i = 0; i < cols; i++) {
+    for (size_t i = 0; i < cols; i++) {
         mat_input(mat_select(mt, row, i), 0, i, mat_row);
     }
 
@@ -102,11 +104,11 @@ mat *mat_select_row(mat *mt, size_t row) {
 }
 
 mat *mat_select_col(mat *mt, size_t col) {
-    int rows = mt->rows;
+    size_t rows = mt->rows;
     mat *mat_col = mat_init(rows, 1);
     if (!mat_col) return NULL;
 
-    for (int i = 0; i < rows; i++) {
+    for (size_t i = 0; i < rows; i++) {
         mat_input(mat_select(mt, col, i), 0, i, mat_col);
     }
 
@@ -328,11 +330,11 @@ mat_LU *mat_LU_factorise(mat *mtA) {
     return factorised_matrices;
 }
 
-mat *mat_solve(mat *mt, mat *vecB);
 
 
 /* 
 double *det(mat *mt);
+mat *mat_solve(mat *mt, mat *vecB);
 mat *mat_inverse(mat *mt);
 unsigned int *mat_rank(mat *mt);
 mat *rref(mat *mt); 
@@ -349,8 +351,12 @@ mat *vec_init(size_t length) {
 } */
 
 size_t vec_size(mat *vec) {
-    if (vec->rows != 1) {
+    if (vec->rows != 1 && vec->cols == 1) {
         return vec->rows;
+    }
+    else if (vec->cols != 1) {
+        printf("Invalid vector.\n");
+        return 0;
     }
     
     return vec->cols;
@@ -366,9 +372,13 @@ int confirmed_vec(mat *vec) {
 }
 
 double vec_dot(mat *vecA, mat *vecB) {
-    if (!confirmed_vec(vecA) || !confirmed_vec(vecB)) return -1223.925;
     size_t size = vec_size(vecA);
-    if (vec_size(vecB) != size) return -1223.925;
+    if (size == 0) {
+        printf("Invalid vector.\n");
+        return NAN;
+    }
+    if (vec_size(vecB) != size) return NAN;
+
 
     // this function will take the dot product between two vectors regardless of whether they are column or row vectors
     double total = 0;

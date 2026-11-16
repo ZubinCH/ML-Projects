@@ -13,17 +13,22 @@ typedef struct LAYER {
     mat *neuron;
     mat *bias;
     mat *weights;
-    size_t neuron_count;
     char actvnfunc;
 } LAYER;
 
 // prototypes
 
 // activation functions
-mat *step(mat *z);
-mat *ReLU(mat *z);
-mat *sigmoid(mat *z);
-mat *sigmoid_derivative(mat *z);
+double activation_function (double z, char function_choice);
+double activation_function_derivative(double z, char function_choice);
+void mat_apply_activation_function(mat *z, char function_choice);
+void mat_apply_activation_function_derivative(mat *z, char function_choice);
+
+mat *matZ(mat *inputs, LAYER *layer);
+
+void initial_weights_selection(mat *weights, double mean, double stdv);
+
+void load_matrix_with_file(mat *mt, FILE *file);
 
 
 

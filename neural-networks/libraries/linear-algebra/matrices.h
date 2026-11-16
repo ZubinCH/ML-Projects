@@ -36,6 +36,7 @@ mat *mat_copy(mat *mt);
 mat *mat_init(size_t rows, size_t cols);
 mat *mat_user_fill(mat *mt);
 void mat_free(mat *mt);
+void mat_array_free(mat **arr, size_t count);
 void mat_print(mat *mt);
 
 // matrix operations

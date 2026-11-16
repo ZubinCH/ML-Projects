@@ -19,7 +19,8 @@ mat *mat_init(size_t rows, size_t cols) {
     }
 
     size_t total_elements = (size_t) rows * (size_t) cols;
-    double *array = (double *) calloc(total_elements, sizeof(double));
+    double *array = NULL;
+    array = (double *) calloc(total_elements, sizeof(double));
     if (!array) {
         printf("Memory allocation failed 1.\n");
         return NULL;
@@ -64,9 +65,19 @@ mat *mat_user_fill(mat *mt) {
 }
 
 void mat_free(mat *mt) {
+    if (!mt) return;
+
     free(mt->arr);
     free(mt);
     return;
+}
+
+void mat_array_free(mat **arr, size_t count) {
+    if (!arr) return;
+    for (int i = 0; i < count; i++) {
+        mat_free(arr[i]); 
+    }
+    free(arr);
 }
 
 void mat_print(mat *mt) {

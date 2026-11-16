@@ -58,6 +58,13 @@ void mat_apply_activation_function_derivative(mat *z, char function_choice) {
 }
 
 
+void layer_free(LAYER *layer, size_t count) {
+    mat_free(layer->weights);
+    mat_free(layer->bias);
+    mat_free(layer->neuron);
+    free(layer);
+}
+
 
 mat *matZ(mat *inputs, LAYER *layer) {
     if (inputs->cols != 1) {
@@ -71,7 +78,6 @@ mat *matZ(mat *inputs, LAYER *layer) {
 
     return z;
 }
-
 
 void initial_weights_selection(mat *weights, double mean, double stdv) {
     size_t rows = weights->rows;
@@ -123,8 +129,19 @@ bool train(
     const char *output_bias
     ) 
     {
-        srand((unsigned int) time(NULL)); // set new seed for initialising matrices
+        mat *input_matrix = NULL;
+        mat *expected_outputs_matrix = NULL;
+        LAYER *layer = NULL;
+        mat **weight_matrix_derivative = NULL;
+        mat **bias_vector_derivative = NULL;
+        mat **weight_matrix_derivative_sum = NULL;
+        mat **bias_vector_derivative_sum = NULL;
 
+
+        bool status = false;
+
+
+        srand((unsigned int) time(NULL)); // set new seed for initialising matrices
         // Initialise constants
         const size_t NUMBER_OF_EXPECTED_OUTPUTS = NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 1];
         const size_t NUMBER_OF_INPUT_NEURONS = NUMBER_OF_NEURONS_IN_LAYER[0];
@@ -137,8 +154,11 @@ bool train(
             printf("Failed to open %s.\n", input_data);
             return false;
         }
-        mat *input_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_NEURONS_IN_LAYER[0]);
-        if (!input_matrix) return false;
+        input_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_NEURONS_IN_LAYER[0]);
+        if (!input_matrix) {
+            fclose(input_file);
+            return false;
+        }
         load_matrix_with_file(input_matrix, input_file);
         fclose(input_file);
 
@@ -146,58 +166,53 @@ bool train(
         FILE *expected_outputs_file = fopen(expected_outputs, 'r');
         if (!expected_outputs_file) {
             printf("Failed to open %s.\n", expected_outputs);
+            mat_free(input_matrix);
             return false;
         }
-        mat *expected_outputs_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_EXPECTED_OUTPUTS);
-        if (!expected_outputs_matrix) return false;
+        expected_outputs_matrix = mat_init(NUMBER_OF_DATA, NUMBER_OF_EXPECTED_OUTPUTS);
+        if (!expected_outputs_matrix) {
+            fclose(expected_outputs_file);
+            goto cleanup;
+        }
         load_matrix_with_file(expected_outputs_matrix, expected_outputs_file);
         fclose(expected_outputs_file);
 
-        FILE *output_weights_file = fopen(output_weights, 'w');
-        if (!output_weights_file) {
-            printf("Failed to open %s.\n", output_weights);
-            return false;
-        }
-
-        FILE *output_bias_file = fopen(output_bias, 'w');
-        if (!output_bias_file) {
-            printf("Failed to open %s.\n", output_bias);
-            return false;
-        }
-
-
-
 
         // Initialise network
-        LAYER *layer = (LAYER *) malloc(NUMBER_OF_LAYERS * sizeof(LAYER));
+        layer = (LAYER *) calloc(NUMBER_OF_LAYERS, sizeof(LAYER));
         if (!layer) {
             printf("Failed to allocate memory for layer struct.\n");
-            return false;
+            goto cleanup;
         }
 
         // Initialise derivative sum matrices and loop through training data
-        mat **weight_matrix_derivative = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
-        mat **bias_vector_derivative = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
-        mat **weight_matrix_derivative_sum = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
-        mat **bias_vector_derivative_sum = (mat **) malloc(NUMBER_OF_LAYERS * sizeof(mat *));
+        weight_matrix_derivative = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *)); // derivative weight matrices for each layer (dC(i)/dW(i, j, k)) (d stands for \nabla)
+        bias_vector_derivative = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *)); // derivative bias vectors for each layer
+        weight_matrix_derivative_sum = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *));
+        bias_vector_derivative_sum = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *));
+
         if (!weight_matrix_derivative_sum || !bias_vector_derivative_sum ||
             !weight_matrix_derivative || !bias_vector_derivative) {
             printf("Failed to initialise derivative sum matrices.\n");
-            return false;
+            goto cleanup;
         }
 
-        for (size_t i = 0; i < NUMBER_OF_LAYERS; i++) {
-            layer[i].neuron_count = NUMBER_OF_NEURONS_IN_LAYER[i];
-            if (i != 0) {
-                layer[i].weights = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], NUMBER_OF_NEURONS_IN_LAYER[i - 1]);
-                layer[i].bias = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], 1);
-                weight_matrix_derivative_sum[i] = mat_copy(layer[i].weights);
-                bias_vector_derivative_sum[i] = mat_copy(layer[i].bias);
-                weight_matrix_derivative[i] = mat_copy(layer[i].weights);
-                bias_vector_derivative[i] = mat_copy(layer[i].bias);
-                initial_weights_selection(layer[i].weights, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
-                initial_weights_selection(layer[i].bias, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
+        for (size_t i = 1; i < NUMBER_OF_LAYERS; i++) {
+            layer[i].weights = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], NUMBER_OF_NEURONS_IN_LAYER[i - 1]);
+            layer[i].bias = mat_init(NUMBER_OF_NEURONS_IN_LAYER[i], 1);
+
+            if (!layer[i].weights || !layer[i].bias) {
+                printf("Failed to initialise layer weights and biases.\n");
+                goto cleanup;
             }
+
+            weight_matrix_derivative_sum[i] = mat_copy(layer[i].weights);
+            bias_vector_derivative_sum[i] = mat_copy(layer[i].bias);
+            weight_matrix_derivative[i] = mat_copy(layer[i].weights);
+            bias_vector_derivative[i] = mat_copy(layer[i].bias);
+
+            initial_weights_selection(layer[i].weights, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
+            initial_weights_selection(layer[i].bias, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
         }
 
         // End of data initialisation
@@ -209,15 +224,15 @@ bool train(
 
             for (size_t i = 0; i < NUMBER_OF_DATA; i++) {
 
-                // select row i from input matrix
+                // select row i from input matrix and expected output matrix
                 mat *input_layer = mat_select_row(input_matrix, i);
                 mat *expected_output_layer = mat_select_row(expected_outputs_matrix, i);
                 mat *negative_expected_output_layer = mat_scale(expected_output_layer, -1.0);
                 layer[0].neuron = mat_transpose(input_layer);
                 mat_free(input_layer);
 
-                mat **z_matrix = (mat**) malloc(NUMBER_OF_LAYERS * sizeof(mat*));
 
+                mat **z_matrix = (mat**) malloc(NUMBER_OF_LAYERS * sizeof(mat*));
 
                 // forward pass through neural network
                 for (size_t j = 1; j < NUMBER_OF_LAYERS; j++) {
@@ -238,7 +253,7 @@ bool train(
                 // calculate cost function gradients of output layer
 
                 for (size_t j = 0; j < NUMBER_OF_EXPECTED_OUTPUTS; j++) {
-                    for (size_t k = 0; k < layer[NUMBER_OF_LAYERS - 2].neuron_count; k++) {
+                    for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 2]; k++) {
                         double cost_over_layerj = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(negative_expected_output_layer, 0, j));
                         double layerj_over_z = mat_select();
 
@@ -256,6 +271,10 @@ bool train(
 
 
 
+                for (size_t free_z = 1; free_z < NUMBER_OF_LAYERS; free_z++) {
+                    mat_free(z_matrix[free_z]);
+                }
+                free(z_matrix);
             }
 
             // Compute average cost function
@@ -268,9 +287,34 @@ bool train(
         }
 
 
+        // Output weights and biases into output files
+        FILE *output_weights_file = fopen(output_weights, 'w');
+        if (!output_weights_file) {
+            printf("Failed to open %s.\n", output_weights);
+            return false;
+        }
+
+        FILE *output_bias_file = fopen(output_bias, 'w');
+        if (!output_bias_file) {
+            printf("Failed to open %s.\n", output_bias);
+            return false;
+        }
+
+
         fclose(output_weights_file);
         fclose(output_bias_file);
-        return true;
+        status = true;
+
+    cleanup:
+        
+        mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);
+        mat_array_free(bias_vector_derivative, NUMBER_OF_LAYERS);
+        mat_array_free(weight_matrix_derivative_sum, NUMBER_OF_LAYERS);
+        mat_array_free(weight_matrix_derivative, NUMBER_OF_LAYERS);
+        free(layer);
+        mat_free(expected_outputs_matrix);
+        mat_free(input_matrix);
+        return status;
     }
 
 /*

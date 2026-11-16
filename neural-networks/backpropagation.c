@@ -131,6 +131,7 @@ bool train(
     const char *output_bias
     ) 
     {
+        // Initialise all variables that must be freed by cleanup
         mat *input_matrix = NULL;
         mat *expected_outputs_matrix = NULL;
         LAYER *layer = NULL;
@@ -140,7 +141,7 @@ bool train(
         mat **bias_vector_derivative_sum = NULL;
         mat *input_layer = NULL;
         mat *expected_output_layer = NULL;
-        mat *negative_expected_output_layer = NULL;
+        mat **matrix_z = NULL;
 
 
         bool status = false;
@@ -238,10 +239,8 @@ bool train(
                 // select row i from input matrix and expected output matrix
                 input_layer = mat_select_row(input_matrix, i);
                 expected_output_layer = mat_select_row(expected_outputs_matrix, i);
-                negative_expected_output_layer = mat_scale(expected_output_layer, -1.0);
 
-                if (!input_layer || !expected_output_layer || 
-                    !negative_expected_output_layer) goto cleanup;
+                if (!input_layer || !expected_output_layer) goto cleanup;
 
                 layer[0].neuron = mat_transpose(input_layer);
                 mat_free(input_layer);
@@ -249,20 +248,23 @@ bool train(
                 if (!layer[0].neuron) goto cleanup;
 
 
-                mat **z_matrix = (mat**) calloc(NUMBER_OF_LAYERS, sizeof(mat*));
+                matrix_z = (mat**) calloc(NUMBER_OF_LAYERS, sizeof(mat*));
 
                 // forward pass through neural network
                 for (size_t j = 1; j < NUMBER_OF_LAYERS; j++) {
-                    z_matrix[j] = matZ(layer[j - 1].neuron, &layer[j]);
-                    layer[j].neuron = activation_function(mat_copy(z_matrix[j]), activation_function_choice[j]);
+                    matrix_z[j] = matZ(layer[j - 1].neuron, &layer[j]);
+                    mat *tmp = mat_copy(matrix_z[j]);
+                    if (!tmp) goto cleanup;
+                    mat_apply_activation_function(tmp, activation_function_choice[j]);
+                    layer[j].neuron = tmp;
                 }
 
                 // perform computations to output layer against expected values
                 mat *final_layer_neurons = layer[NUMBER_OF_LAYERS - 1].neuron;
                 double initial_cost_sum = 0;
                 for (size_t j = 0; j < NUMBER_OF_EXPECTED_OUTPUTS; j++) {
-                    initial_cost_sum += (mat_select(final_layer_neurons, j, 0) - mat_select(negative_expected_output_layer, 0, j)) * 
-                        (mat_select(final_layer_neurons, j, 0) - mat_select(negative_expected_output_layer, 0, j));
+                    initial_cost_sum += (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j)) * 
+                        (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
                 }
                 cost_sum += (1 / 2 * NUMBER_OF_EXPECTED_OUTPUTS) * initial_cost_sum;
 
@@ -270,12 +272,22 @@ bool train(
                 // calculate cost function gradients of output layer
 
                 for (size_t j = 0; j < NUMBER_OF_EXPECTED_OUTPUTS; j++) {
+                    double cost_over_layerj = 0;
+                    double layerj_over_z = 0;
+                    double z_over_weights = 0;
+
                     for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 2]; k++) {
-                        double cost_over_layerj = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(negative_expected_output_layer, 0, j));
-                        double layerj_over_z = mat_select();
+                        cost_over_layerj = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
+                        layerj_over_z = activation_function_derivative(mat_select(matrix_z[NUMBER_OF_LAYERS - 1], j, 1), activation_function_choice[NUMBER_OF_LAYERS - 1]);
+                        z_over_weights = mat_select(final_layer_neurons, k, 1);
 
+                        double product_of_derivatives = cost_over_layerj * layerj_over_z * z_over_weights;
+
+                        mat_input(product_of_derivatives, j, k, weight_matrix_derivative);
+                        mat_input(mat_select(weight_matrix_derivative_sum, j, k) + product_of_derivatives, j, k, weight_matrix_derivative_sum);
                     }
-
+                    mat_input(cost_over_layerj * layerj_over_z, j, 0, bias_vector_derivative);
+                    mat_input(mat_select(bias_vector_derivative_sum, j, 0) + cost_over_layerj * layerj_over_z, j, 0, bias_vector_derivative_sum);
                 }
 
 
@@ -289,9 +301,9 @@ bool train(
 
 
                 for (size_t free_z = 1; free_z < NUMBER_OF_LAYERS; free_z++) {
-                    mat_free(z_matrix[free_z]);
+                    mat_free(matrix_z[free_z]);
                 }
-                free(z_matrix);
+                free(matrix_z);
             }
 
             // Compute average cost function
@@ -323,7 +335,7 @@ bool train(
         status = true;
 
     cleanup:
-        mat_free(negative_expected_output_layer);
+        mat_array_free(matrix_z, NUMBER_OF_LAYERS);
         mat_free(expected_output_layer);
         mat_free(input_layer);
         mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);

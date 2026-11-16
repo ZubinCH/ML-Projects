@@ -9,73 +9,59 @@
 #include "libraries/linear-algebra/matrices.h"
 #include "libraries/random-numbers/random_numbers.h"
 
-// activation functions
-mat *step(mat *z) {
-    size_t rows = z->rows;
-    size_t cols = z->cols;
 
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            if (!(mat_select(z, i, j) > 0)) mat_input(0, i, j, z);
-            else mat_input(1, i, j, z);
-        }
+double activation_function (double z, char function_choice) {
+    switch (function_choice) {
+        case 's':
+            if (z < 0) return 0;
+            return 1;
+        case 'o':
+            return (1.0 / (1.0 + exp(-z)));
+        case 'r':
+            if (z < 0) return 0;
+            return z;
+        default:
+            printf("Invalid function choice.\n");
+            return NAN;
     }
-
-    return z;
 }
 
-mat *ReLU(mat *z) {
-    size_t rows = z->rows;
-    size_t cols = z->cols;
-
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            if (!(mat_select(z, i, j) > 0)) mat_input(0, i, j, z);
-        }
+double activation_function_derivative(double z, char function_choice) {
+    switch (function_choice) {
+        case 's':
+            return 0;
+        case 'o':
+            return (exp(-z) / (1.0 + exp(-z)) * (1.0 + exp(-z)));
+        case 'r':
+            if (z < 0) return 0;
+            return 1;
+        default:
+            printf("Invalid function choice.\n");
+            return NAN;
     }
-
-    return z;
 }
 
-mat *sigmoid(mat *z) {
-    size_t rows = z->rows;
-    size_t cols = z->cols;
-
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            double selected_component = mat_select(z, i, j);
-            double sigmoid_value = 1.0 / (1.0 + exp(-selected_component));
-            mat_input(sigmoid_value, i, j, z);
-        }
+void mat_apply_activation_function(mat *z, char function_choice) {
+    size_t total_components = z->rows * z->cols;
+    for (size_t i = 0; i < total_components; i++) {
+        z->arr[i] = activation_function(z->arr[i], function_choice);
     }
 
-    return z;
 }
 
-mat *sigmoid_derivative(mat *z) {
-    size_t rows = z->rows;
-    size_t cols = z->cols;
-
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-            double selected_component = mat_select(z, i, j);
-            double sigmoid_derivative_value = exp(-selected_component) / ((1.0 + exp(-selected_component)) * (1.0 + exp(-selected_component)));
-            mat_input(sigmoid_derivative_value, i, j, z);
-        }
+void mat_apply_activation_function_derivative(mat *z, char function_choice) {
+    size_t total_components = z->rows * z->cols;
+    for (size_t i = 0; i < total_components; i++) {
+        z->arr[i] = activation_function_derivative(z->arr[i], function_choice);
     }
 
-    return z;
 }
+
+
 
 mat *matZ(mat *inputs, LAYER *layer) {
-    if (inputs->rows == 1) {
-        mat *tmp1 = inputs;
-        inputs = mat_transpose(inputs);
-        mat_free(tmp1);
-    }
-
-    else if (inputs->cols != 1) {
-        printf("Invalid inputs vector.\n");
+    if (inputs->cols != 1) {
+        printf("Invalid vector.\n");
         return NULL;
     }
 
@@ -86,37 +72,6 @@ mat *matZ(mat *inputs, LAYER *layer) {
     return z;
 }
 
-
-mat *activation_function(mat *z, char activation) {
-    switch (activation) {
-        case 's':
-            return step(z);
-        case 'o':
-            return sigmoid(z);
-        case 'r':
-            return ReLU(z);
-        default:
-            printf("Invalid activation function.\n");
-            return NULL;
-    }
-
-}
-
-mat *activation_function_derivative(mat *z, LAYER *layer) {
-    switch (layer->actvnfunc) {
-        case 's':
-            mat *new_z = mat_init(z->rows, z->cols);
-            mat_free(z);
-            return new_z;
-        case 'o':
-            return sigmoid_derivative(z);
-        case 'r':
-            return step(z);
-        default:
-            printf("Invalid activation function.\n");
-            return NULL;
-    }
-}
 
 void initial_weights_selection(mat *weights, double mean, double stdv) {
     size_t rows = weights->rows;

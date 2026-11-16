@@ -29,6 +29,7 @@ mat *matZ(mat *inputs, LAYER *layer);
 void initial_weights_selection(mat *weights, double mean, double stdv);
 
 void load_matrix_with_file(mat *mt, FILE *file);
+void network_free(LAYER *layer, size_t count);
 
 
 

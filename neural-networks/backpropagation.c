@@ -58,11 +58,13 @@ void mat_apply_activation_function_derivative(mat *z, char function_choice) {
 }
 
 
-void layer_free(LAYER *layer, size_t count) {
-    mat_free(layer->weights);
-    mat_free(layer->bias);
-    mat_free(layer->neuron);
-    free(layer);
+void network_free(LAYER *layer, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        mat_free(layer[i].weights);
+        mat_free(layer[i].bias);
+        mat_free(layer[i].neuron);
+        free(&layer[i]);
+    }
 }
 
 
@@ -136,6 +138,9 @@ bool train(
         mat **bias_vector_derivative = NULL;
         mat **weight_matrix_derivative_sum = NULL;
         mat **bias_vector_derivative_sum = NULL;
+        mat *input_layer = NULL;
+        mat *expected_output_layer = NULL;
+        mat *negative_expected_output_layer = NULL;
 
 
         bool status = false;
@@ -211,6 +216,12 @@ bool train(
             weight_matrix_derivative[i] = mat_copy(layer[i].weights);
             bias_vector_derivative[i] = mat_copy(layer[i].bias);
 
+            if (!weight_matrix_derivative[i] || !weight_matrix_derivative_sum[i] || 
+                !bias_vector_derivative[i] || !bias_vector_derivative_sum[i]) {
+                printf("Failed to copy matrix.\n");
+                goto cleanup;
+            }
+
             initial_weights_selection(layer[i].weights, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
             initial_weights_selection(layer[i].bias, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
         }
@@ -225,14 +236,20 @@ bool train(
             for (size_t i = 0; i < NUMBER_OF_DATA; i++) {
 
                 // select row i from input matrix and expected output matrix
-                mat *input_layer = mat_select_row(input_matrix, i);
-                mat *expected_output_layer = mat_select_row(expected_outputs_matrix, i);
-                mat *negative_expected_output_layer = mat_scale(expected_output_layer, -1.0);
+                input_layer = mat_select_row(input_matrix, i);
+                expected_output_layer = mat_select_row(expected_outputs_matrix, i);
+                negative_expected_output_layer = mat_scale(expected_output_layer, -1.0);
+
+                if (!input_layer || !expected_output_layer || 
+                    !negative_expected_output_layer) goto cleanup;
+
                 layer[0].neuron = mat_transpose(input_layer);
                 mat_free(input_layer);
 
+                if (!layer[0].neuron) goto cleanup;
 
-                mat **z_matrix = (mat**) malloc(NUMBER_OF_LAYERS * sizeof(mat*));
+
+                mat **z_matrix = (mat**) calloc(NUMBER_OF_LAYERS, sizeof(mat*));
 
                 // forward pass through neural network
                 for (size_t j = 1; j < NUMBER_OF_LAYERS; j++) {
@@ -306,11 +323,14 @@ bool train(
         status = true;
 
     cleanup:
-        
+        mat_free(negative_expected_output_layer);
+        mat_free(expected_output_layer);
+        mat_free(input_layer);
         mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);
         mat_array_free(bias_vector_derivative, NUMBER_OF_LAYERS);
         mat_array_free(weight_matrix_derivative_sum, NUMBER_OF_LAYERS);
         mat_array_free(weight_matrix_derivative, NUMBER_OF_LAYERS);
+        network_free(layer, NUMBER_OF_LAYERS);
         free(layer);
         mat_free(expected_outputs_matrix);
         mat_free(input_matrix);

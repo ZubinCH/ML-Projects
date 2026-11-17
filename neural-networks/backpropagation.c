@@ -74,9 +74,12 @@ mat *matZ(mat *inputs, LAYER *layer) {
         return NULL;
     }
 
-    mat *Wx = mat_mult(layer->weights, inputs);
-    mat *z = mat_add(Wx, layer->bias);
-    mat_free(Wx);
+    mat *z = mat_mult(layer->weights, inputs);
+    size_t total_elements = z->cols * z->rows;
+
+    for (size_t i = 0; i < total_elements; i++) {
+        z->arr[i] += layer->bias->arr[i];
+    }
 
     return z;
 }
@@ -253,10 +256,10 @@ bool train(
                 // forward pass through neural network
                 for (size_t j = 1; j < NUMBER_OF_LAYERS; j++) {
                     matrix_z[j] = matZ(layer[j - 1].neuron, &layer[j]);
-                    mat *tmp = mat_copy(matrix_z[j]);
-                    if (!tmp) goto cleanup;
-                    mat_apply_activation_function(tmp, activation_function_choice[j]);
-                    layer[j].neuron = tmp;
+                    layer[j].neuron = mat_copy(matrix_z[j]);
+                    if (!layer[j].neuron) goto cleanup;
+                    mat_apply_activation_function(layer[j].neuron, activation_function_choice[j]);
+                    mat_apply_activation_function_derivative(matrix_z, activation_function_choice[j]);
                 }
 
                 // perform computations to output layer against expected values
@@ -278,7 +281,7 @@ bool train(
 
                     for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 2]; k++) {
                         cost_over_layerj = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
-                        layerj_over_z = activation_function_derivative(mat_select(matrix_z[NUMBER_OF_LAYERS - 1], j, 1), activation_function_choice[NUMBER_OF_LAYERS - 1]);
+                        layerj_over_z = mat_select(matrix_z[NUMBER_OF_LAYERS - 1], j, 0);
                         z_over_weights = mat_select(final_layer_neurons, k, 1);
 
                         double product_of_derivatives = cost_over_layerj * layerj_over_z * z_over_weights;
@@ -291,7 +294,6 @@ bool train(
                 }
 
 
-
                 // backward pass through neural network
 
                 
@@ -300,15 +302,12 @@ bool train(
 
 
 
-                for (size_t free_z = 1; free_z < NUMBER_OF_LAYERS; free_z++) {
-                    mat_free(matrix_z[free_z]);
-                }
-                free(matrix_z);
             }
 
             // Compute average cost function
 
             // Gradient descent
+
 
             if (!cost_sum) fitted = 1;
             if (fitted) break;

@@ -59,7 +59,7 @@ void mat_apply_activation_function_derivative(mat *z, char function_choice) {
 
 
 void network_free(LAYER *layer, size_t count) {
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = count; i >= 0; i--) {
         mat_free(layer[i].weights);
         mat_free(layer[i].bias);
         mat_free(layer[i].neuron);
@@ -138,8 +138,6 @@ bool train(
         mat *input_matrix = NULL;
         mat *expected_outputs_matrix = NULL;
         LAYER *layer = NULL;
-        mat **weight_matrix_derivative = NULL;
-        mat **bias_vector_derivative = NULL;
         mat **weight_matrix_derivative_sum = NULL;
         mat **bias_vector_derivative_sum = NULL;
         mat *input_layer = NULL;
@@ -195,13 +193,10 @@ bool train(
         }
 
         // Initialise derivative sum matrices and loop through training data
-        weight_matrix_derivative = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *)); // derivative weight matrices for each layer (dC(i)/dW(i, j, k)) (d stands for \nabla)
-        bias_vector_derivative = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *)); // derivative bias vectors for each layer
         weight_matrix_derivative_sum = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *));
         bias_vector_derivative_sum = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *));
 
-        if (!weight_matrix_derivative_sum || !bias_vector_derivative_sum ||
-            !weight_matrix_derivative || !bias_vector_derivative) {
+        if (!weight_matrix_derivative_sum || !bias_vector_derivative_sum) {
             printf("Failed to initialise derivative sum matrices.\n");
             goto cleanup;
         }
@@ -217,11 +212,7 @@ bool train(
 
             weight_matrix_derivative_sum[i] = mat_copy(layer[i].weights);
             bias_vector_derivative_sum[i] = mat_copy(layer[i].bias);
-            weight_matrix_derivative[i] = mat_copy(layer[i].weights);
-            bias_vector_derivative[i] = mat_copy(layer[i].bias);
-
-            if (!weight_matrix_derivative[i] || !weight_matrix_derivative_sum[i] || 
-                !bias_vector_derivative[i] || !bias_vector_derivative_sum[i]) {
+            if (!weight_matrix_derivative_sum[i] || !bias_vector_derivative_sum[i]) {
                 printf("Failed to copy matrix.\n");
                 goto cleanup;
             }
@@ -274,34 +265,60 @@ bool train(
 
                 // calculate cost function gradients of output layer
 
+                double cost_over_final_layer[NUMBER_OF_EXPECTED_OUTPUTS];
+
                 for (size_t j = 0; j < NUMBER_OF_EXPECTED_OUTPUTS; j++) {
-                    double cost_over_layerj = 0;
                     double layerj_over_z = 0;
                     double z_over_weights = 0;
 
                     for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 2]; k++) {
-                        cost_over_layerj = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
+                        cost_over_final_layer[j] = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
                         layerj_over_z = mat_select(matrix_z[NUMBER_OF_LAYERS - 1], j, 0);
                         z_over_weights = mat_select(final_layer_neurons, k, 1);
 
-                        double product_of_derivatives = cost_over_layerj * layerj_over_z * z_over_weights;
+                        double product_of_derivatives = cost_over_final_layer[j] * layerj_over_z * z_over_weights;
 
-                        mat_input(product_of_derivatives, j, k, weight_matrix_derivative);
-                        mat_input(mat_select(weight_matrix_derivative_sum, j, k) + product_of_derivatives, j, k, weight_matrix_derivative_sum);
+                        mat_input(mat_select(weight_matrix_derivative_sum[NUMBER_OF_LAYERS - 1], j, k) + product_of_derivatives, j, k, weight_matrix_derivative_sum[NUMBER_OF_LAYERS - 1]);
                     }
-                    mat_input(cost_over_layerj * layerj_over_z, j, 0, bias_vector_derivative);
-                    mat_input(mat_select(bias_vector_derivative_sum, j, 0) + cost_over_layerj * layerj_over_z, j, 0, bias_vector_derivative_sum);
+                    mat_input(mat_select(bias_vector_derivative_sum[NUMBER_OF_LAYERS - 1], j, 0) + cost_over_final_layer[j] * layerj_over_z, j, 0, bias_vector_derivative_sum[NUMBER_OF_LAYERS - 1]);
                 }
 
 
                 // backward pass through neural network
 
-                
+                double previous_layer_neuron_sum[NUMBER_OF_LAYERS - 2];
 
-                // store sum results
+                for (size_t L = NUMBER_OF_LAYERS - 2; L > 0; L--) {
+                    for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[L]; k++) {
 
+                        previous_layer_neuron_sum[L - 1] = 0;
+                        if (L = NUMBER_OF_LAYERS - 2) {
+                            for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L + 1]; j++) {
+                                previous_layer_neuron_sum[L - 1] += cost_over_final_layer[j] 
+                                * mat_select(matrix_z[L + 1], j, 0) * mat_select(layer[L + 1].weights, j, k);
+                            }
+                        }
 
+                        else {
+                            for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L + 1]; j++) {
+                                previous_layer_neuron_sum[L - 1] += 
+                                mat_select(matrix_z[L + 1], j, 0) * mat_select(layer[L + 1].weights, j, k);
+                            }
+                            previous_layer_neuron_sum[L - 1] *= previous_layer_neuron_sum[L];
+                        }
 
+                        for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L + 1]; j++) {
+                            mat_input(mat_select(weight_matrix_derivative_sum[L], j, k) 
+                            + previous_layer_neuron_sum[L - 1] * mat_select(matrix_z[L], k, 0) 
+                            * mat_select(layer[L].neuron, j, k),
+                            j, k, weight_matrix_derivative_sum[L]);
+                        }
+
+                        mat_input(mat_select(bias_vector_derivative_sum[L], k, 0) 
+                            + previous_layer_neuron_sum[L - 1] * mat_select(matrix_z[L], k, 0),
+                            k, 0, bias_vector_derivative_sum[L]);
+                    }
+                }
             }
 
             // Compute average cost function
@@ -338,9 +355,7 @@ bool train(
         mat_free(expected_output_layer);
         mat_free(input_layer);
         mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);
-        mat_array_free(bias_vector_derivative, NUMBER_OF_LAYERS);
         mat_array_free(weight_matrix_derivative_sum, NUMBER_OF_LAYERS);
-        mat_array_free(weight_matrix_derivative, NUMBER_OF_LAYERS);
         network_free(layer, NUMBER_OF_LAYERS);
         free(layer);
         mat_free(expected_outputs_matrix);

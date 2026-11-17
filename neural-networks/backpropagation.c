@@ -327,15 +327,14 @@ bool train(
                 size_t total_elements = NUMBER_OF_NEURONS_IN_LAYER[L] * NUMBER_OF_NEURONS_IN_LAYER[L - 1];
                 for (size_t i = 0; i < total_elements; i++) {
                     weight_matrix_derivative_sum[L]->arr[i] *= 1.0 / (NUMBER_OF_DATA);
+                    layer[L].weights->arr[i] -= LEARNING_RATE * weight_matrix_derivative_sum[L]->arr[i];
                 }
 
                 for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L]; j++) {
                     bias_vector_derivative_sum[L]->arr[j] *= 1.0 / (NUMBER_OF_DATA);
+                    layer[L].bias->arr[j] -= LEARNING_RATE * bias_vector_derivative_sum[L]->arr[j];
                 }
             }
-
-            // Gradient descent
-
 
             if (!cost_sum) fitted = 1;
             if (fitted) break;

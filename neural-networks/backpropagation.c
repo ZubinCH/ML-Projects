@@ -250,7 +250,7 @@ bool train(
                     layer[j].neuron = mat_copy(matrix_z[j]);
                     if (!layer[j].neuron) goto cleanup;
                     mat_apply_activation_function(layer[j].neuron, activation_function_choice[j]);
-                    mat_apply_activation_function_derivative(matrix_z, activation_function_choice[j]);
+                    mat_apply_activation_function_derivative(matrix_z[j], activation_function_choice[j]);
                 }
 
                 // perform computations to output layer against expected values
@@ -322,6 +322,17 @@ bool train(
             }
 
             // Compute average cost function
+
+            for (size_t L = 1; L < NUMBER_OF_LAYERS; L++) {
+                size_t total_elements = NUMBER_OF_NEURONS_IN_LAYER[L] * NUMBER_OF_NEURONS_IN_LAYER[L - 1];
+                for (size_t i = 0; i < total_elements; i++) {
+                    weight_matrix_derivative_sum[L]->arr[i] *= 1.0 / (NUMBER_OF_DATA);
+                }
+
+                for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L]; j++) {
+                    bias_vector_derivative_sum[L]->arr[j] *= 1.0 / (NUMBER_OF_DATA);
+                }
+            }
 
             // Gradient descent
 

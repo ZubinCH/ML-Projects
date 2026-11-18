@@ -1,3 +1,34 @@
+
+/*
+ * neural-network.c
+ * Author: Zubin Chowdhury (GitHub: @ZubinCH)
+ * Date: 18.11.2026
+ * Purpose: A scalable neural network program built in C. 
+ * It can handle any any number of inputs, number of layers (within reason), neurons per layer, and provide the desired number of outputs.
+ * Only the training function has been built so far.
+ * 
+ * 
+ * 
+ * 
+ * 
+ * Active to do list:
+    * Complete the accuracy check function for supervised learning after data has been fitted
+        * Ensure check files have data the model hasn't been trained on
+    * Build input and expected output files for datasets
+    * Implement SQL based file handling rather than using CSV files
+    * Implement regularisation of weights and biases into the algorithm to prevent overfitting
+    * Implement apply function where a trained neural network can be used for classifying and predicting data
+    * Implement time checks for different components of the program to see how long each section of the program takes and what can be optimised
+    * Implement int main void in a separate file
+    * Build CI/CD tests to verify all components of the program work as intended
+        * mkdir file_handling
+ *          
+ *      
+ *      
+ * 
+ *
+*/
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -128,7 +159,7 @@ void load_matrix_with_file(mat *mt, FILE *file) {
 void load_mat_array_with_file(size_t NUMBER_OF_MATRICES, mat **matrices, FILE *file) {
     char line[MAX_LINE];
     size_t i = 0;
-    
+
     while (fgets(line, sizeof(line), file) && i < NUMBER_OF_MATRICES) {
         size_t m_max = matrices[i]->rows;
         size_t n_max = matrices[i]->cols;
@@ -392,21 +423,36 @@ bool train(
 
         // Output weights and biases into output files
         FILE *output_weights_file = fopen(output_weights, 'w');
-        if (!output_weights_file) {
-            printf("Failed to open %s.\n", output_weights);
-            return false;
-        }
-
-        // Store each weight matrix as a single line - later initialisation with other functions will calculate the matrix sizes
-
-
-
         FILE *output_bias_file = fopen(output_bias, 'w');
+        if (!output_weights_file) {
+            printf("Failed to open output weights file.\n");
+            goto cleanup;
+        }
         if (!output_bias_file) {
-            printf("Failed to open %s.\n", output_bias);
-            return false;
+            printf("Failed to open output bias file.\n");
+            fclose(output_weights_file);
+            goto cleanup;
         }
 
+
+
+        // Store each weight matrix as a single line - later initialisation with other functions will calculate the matrix sizes using neurons per layer
+        for (size_t L = 1; L < NUMBER_OF_LAYERS; L++) {
+            size_t total_elements = layer[L].weights->rows * layer[L].weights->cols;
+            size_t total_vector_elements = layer[L].bias->rows * layer[L].bias->cols;
+            for (size_t j = 0; j < total_elements; j++) {
+                fprintf(output_weights_file, "%0.10f", layer[L].weights->arr[j]);
+                if (j != total_elements - 1) fprintf(output_weights_file, ",");
+            }
+
+            for (size_t k = 0; k < total_vector_elements; k++) {
+                fprintf(output_bias_file, "%0.10f", layer[L].bias->arr[k]);
+                if (k != total_vector_elements - 1) fprintf(output_bias_file, ",");
+            }
+
+            fprintf(output_bias_file, "\n");
+            fprintf(output_weights_file, "\n");
+        }
 
         fclose(output_weights_file);
         fclose(output_bias_file);

@@ -41,8 +41,8 @@ mat *mat_init(size_t rows, size_t cols) {
 
 mat *mat_copy(mat *mt) {
     mat *mt_new = mat_init(mt->rows, mt->cols);
-    for (int i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             mt_new->arr[i * n + j] = mt->arr[i * n + j];
 
         }
@@ -52,8 +52,8 @@ mat *mat_copy(mat *mt) {
 }
 
 mat *mat_user_fill(mat *mt) {
-    for (int i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             double tmp;
             printf("Input (%i, %i): ", i + 1, j + 1);
             scanf(" %lf", &tmp);
@@ -81,9 +81,9 @@ void mat_array_free(mat **arr, size_t count) {
 }
 
 void mat_print(mat *mt) {
-    for (int i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
+    for (size_t i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
         printf("[");
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             printf("%0.2f", mat_select(mt, i, j));
             if (j != n - 1) printf(", ");
         }
@@ -136,8 +136,8 @@ mat *mat_add(mat *mtA, mat *mtB) {
     mat *mt_result = mat_init(mtA->rows, mtA->cols);
     if (!mt_result) return NULL;
 
-    for (int i = 0, m = mtA->rows; i < m; i++) {
-        for (int j = 0, n = mtA->cols; j < n; j++) {
+    for (size_t i = 0, m = mtA->rows; i < m; i++) {
+        for (size_t j = 0, n = mtA->cols; j < n; j++) {
             mat_input(mat_select(mtA, i, j) + mat_select(mtB, i, j), i, j, mt_result);
         }
     }
@@ -154,8 +154,8 @@ mat *mat_subtract(mat *mtA, mat *mtB) {
     mat *mt_result = mat_init(mtA->rows, mtA->cols);
     if (!mt_result) return NULL;
 
-    for (int i = 0, m = mtA->rows; i < m; i++) {
-        for (int j = 0, n = mtA->cols; j < n; j++) {
+    for (size_t i = 0, m = mtA->rows; i < m; i++) {
+        for (size_t j = 0, n = mtA->cols; j < n; j++) {
             mat_input(mat_select(mtA, i, j) - mat_select(mtB, i, j), i, j, mt_result);
 
         }
@@ -173,8 +173,8 @@ mat *mat_value_mult(mat *mtA, mat *mtB) {
     mat *mt_result = mat_init(mtA->rows, mtA->cols);
     if (!mt_result) return NULL;
 
-    for (int i = 0, m = mtA->rows; i < m; i++) {
-        for (int j = 0, n = mtA->cols; j < n; j++) {
+    for (size_t i = 0, m = mtA->rows; i < m; i++) {
+        for (size_t j = 0, n = mtA->cols; j < n; j++) {
             mat_input(mat_select(mtA, i, j) * mat_select(mtB, i, j), i, j, mt_result);
 
         }
@@ -187,8 +187,8 @@ mat *mat_scale(mat *mt, double scale_factor) {
     mat *mt_result = mat_init(mt->rows, mt->cols);
     if (!mt_result) return NULL;
 
-    for (int i = 0, m = mt->rows; i < m; i++) {
-        for (int j = 0, n = mt->cols; j < n; j++) {
+    for (size_t i = 0, m = mt->rows; i < m; i++) {
+        for (size_t j = 0, n = mt->cols; j < n; j++) {
             mat_input(scale_factor * mat_select(mt, i, j), i, j, mt_result);
 
         }
@@ -201,8 +201,8 @@ mat *mat_transpose(mat *mt) {
     mat *mt_transposed = mat_init(mt->cols, mt->rows);
     if (!mt_transposed) return NULL;
 
-    for (int i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0, m = mt->rows, n = mt->cols; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             mat_input(mat_select(mt, i, j), j, i, mt_transposed);
         }
     }
@@ -222,11 +222,11 @@ mat *mat_mult(mat *mt1, mat *mt2) {
     size_t m = mt1->rows;
     size_t n = mt2->cols;
 
-    for (int i = 0; i < m; i++) {
+    for (size_t i = 0; i < m; i++) {
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             double value = 0;
-            for (int k = 0; k < mt1->cols; k++) {
+            for (size_t k = 0; k < mt1->cols; k++) {
                 value += mat_select(mt1, i, k) * mat_select(mt2, k, j);
             }
             mat_input(value, i, j, mt_multiplied);
@@ -240,7 +240,7 @@ mat *mat_identity(size_t size) {
     mat *identity = mat_init(size, size);
     if (!identity) return NULL;
 
-    for (int i = 0; i < size; i++) {
+    for (size_t i = 0; i < size; i++) {
         mat_input(1, i, i, identity);
     }
     
@@ -264,16 +264,16 @@ mat_LU *mat_LU_factorise(mat *mtA) {
     mat *mtU = mat_copy(mtA);
     mat *mtP = mat_identity(mtA->rows);
 
-    int m = mtA->rows;
-    int n = mtA->cols;
+    size_t m = mtA->rows;
+    size_t n = mtA->cols;
 
-    for (int j = 0; j < m; j++) {
+    for (size_t j = 0; j < m; j++) {
         double divisor = mat_select(mtU, j, j);
         
         if (f_abs(divisor) < 1e-12) {
             size_t swap_row = j;
 
-            for (int k = j + 1; k < m; k++) {
+            for (size_t k = j + 1; k < m; k++) {
                 if (f_abs(mat_select(mtU, k, j)) > 1e-12) {
                     swap_row = k;
                     break;
@@ -283,7 +283,7 @@ mat_LU *mat_LU_factorise(mat *mtA) {
             if (swap_row != j) {
                 mat *mtP_new = mat_identity(m);
 
-                for (int k = 0; k < n; k++) {
+                for (size_t k = 0; k < n; k++) {
                     mat_input(0, swap_row, k, mtP_new);
                     mat_input(0, j, k, mtP_new);
                 }
@@ -300,7 +300,7 @@ mat_LU *mat_LU_factorise(mat *mtA) {
                 mat_free(mtU_tmp);
                 mat_free(mtP_new);
 
-                for (int col = 0; col < j; col++) {
+                for (size_t col = 0; col < j; col++) {
                     double tmp = mat_select(mtL, j, col);
                     mat_input(mat_select(mtL, swap_row, col), j, col, mtL);
                     mat_input(tmp, swap_row, col, mtL);
@@ -314,11 +314,11 @@ mat_LU *mat_LU_factorise(mat *mtA) {
             continue; 
         }
 
-        for (int i = j + 1; i < m; i++) {
+        for (size_t i = j + 1; i < m; i++) {
             double scale_factor = mat_select(mtU, i, j) / divisor;
             mat_input(scale_factor, i, j, mtL);
 
-            for (int k = 0; k < n; k++) {
+            for (size_t k = 0; k < n; k++) {
                 double value = mat_select(mtU, i, k) - (scale_factor * mat_select(mtU, j, k));
                 mat_input(value, i, k, mtU);
             }
@@ -371,15 +371,6 @@ size_t vec_size(mat *vec) {
     }
     
     return vec->cols;
-}
-
-int confirmed_vec(mat *vec) {
-    if (vec->cols == 1 || vec->rows == 1) {
-        return 1;
-    }
-
-    printf("Invalid vector.\n");
-    return 0;
 }
 
 double vec_dot(mat *vecA, mat *vecB) {

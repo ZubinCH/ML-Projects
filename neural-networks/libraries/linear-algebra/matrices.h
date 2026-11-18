@@ -63,7 +63,6 @@ mat *mat_concatenate(mat *mt1, mat *mt2);
 // vector function prototypes
 mat *vec_init(size_t length);
 size_t vec_size(mat *vec);
-int confirmed_vec(mat *vec);
 double vec_dot(mat *vecA, mat *vecB);
 mat *vec_cross(mat *vecA, mat *vecB);
 mat *vec_transpose(mat *vecA);

@@ -104,6 +104,7 @@ void load_matrix_with_file(mat *mt, FILE *file) {
     size_t n_max = mt->cols;
 
     size_t m = 0;
+
     while(fgets(line, sizeof(line), file) && m < m_max) {
         line[strcspn(line, '\n')] = '\0';
         char *token = strtok(line, ",");
@@ -113,7 +114,7 @@ void load_matrix_with_file(mat *mt, FILE *file) {
         }
 
         size_t n = 0;
-        while (token != NULL && n < n_max) {
+        while (token && n < n_max) {
             double value = atof(token);
             mat_input(value, m, n, mt);
             token = strtok(NULL, ",");
@@ -121,7 +122,42 @@ void load_matrix_with_file(mat *mt, FILE *file) {
         }
         m++;
     }
+    return;
 }
+
+void load_mat_array_with_file(size_t NUMBER_OF_MATRICES, mat **matrices, FILE *file) {
+    char line[MAX_LINE];
+    size_t i = 0;
+    
+    while (fgets(line, sizeof(line), file) && i < NUMBER_OF_MATRICES) {
+        size_t m_max = matrices[i]->rows;
+        size_t n_max = matrices[i]->cols;
+
+        line[strscpn(line, '\n')] = '\0';
+        char *token = strtok(line, ",");
+        if (!token) {
+            printf("Failed to tokenise.\n");
+            return;
+        }
+
+        for (size_t m = 0; m < m_max; m++) {
+            size_t n = 0;
+            while (n < n_max && token) {
+                double value = atof(token);
+                mat_input(value, m, n, matrices[i]);
+                token = strtok(NULL, ",");
+                n++;
+            }
+
+
+        }
+        i++;
+    }
+
+
+
+}
+
 
 bool train(
     const size_t NUMBER_OF_DATA, 
@@ -144,16 +180,18 @@ bool train(
         mat *expected_output_layer = NULL;
         mat **matrix_z = NULL;
 
-
+        // Check for whether the function successfully performed all necessary operations
         bool status = false;
 
 
-        srand((unsigned int) time(NULL)); // set new seed for initialising matrices
+        // set new seed for initialising matrices' normally distributed random number components
+        srand((unsigned int) time(NULL));
+
         // Initialise constants
         const size_t NUMBER_OF_EXPECTED_OUTPUTS = NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 1];
         const size_t NUMBER_OF_INPUT_NEURONS = NUMBER_OF_NEURONS_IN_LAYER[0];
 
-        // Open files
+        // Open input data and expected output files
 
         // Load inputs, tokenise and store into matrix
         FILE *input_file = fopen(input_data, 'r');
@@ -192,7 +230,7 @@ bool train(
             goto cleanup;
         }
 
-        // Initialise derivative sum matrices and loop through training data
+        // Initialise derivative sum matrices
         weight_matrix_derivative_sum = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *));
         bias_vector_derivative_sum = (mat **) calloc(NUMBER_OF_LAYERS, sizeof(mat *));
 
@@ -228,17 +266,27 @@ bool train(
             bool fitted = 0;
             double cost_sum = 0;
 
+            // Ensure all derivative matrices and vectors are zero before looping through all training data 
+            for (size_t L = 1; L < NUMBER_OF_LAYERS; L++) {
+                for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L]; j++) {
+                    for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[L - 1]; k++) {
+                        mat_input(0, j, k, weight_matrix_derivative_sum[L]);
+                    }
+                    mat_input(0, j, 0, weight_matrix_derivative_sum[L]);
+                }
+
+            }
+
+            // Loop through all training data
             for (size_t i = 0; i < NUMBER_OF_DATA; i++) {
 
                 // select row i from input matrix and expected output matrix
                 input_layer = mat_select_row(input_matrix, i);
                 expected_output_layer = mat_select_row(expected_outputs_matrix, i);
-
                 if (!input_layer || !expected_output_layer) goto cleanup;
-
                 layer[0].neuron = mat_transpose(input_layer);
+                if (!layer[0].neuron) goto cleanup;
                 mat_free(input_layer);
-
                 if (!layer[0].neuron) goto cleanup;
 
 
@@ -349,6 +397,10 @@ bool train(
             return false;
         }
 
+        // Store each weight matrix as a single line - later initialisation with other functions will calculate the matrix sizes
+
+
+
         FILE *output_bias_file = fopen(output_bias, 'w');
         if (!output_bias_file) {
             printf("Failed to open %s.\n", output_bias);
@@ -360,18 +412,19 @@ bool train(
         fclose(output_bias_file);
         status = true;
 
-    cleanup:
-        mat_array_free(matrix_z, NUMBER_OF_LAYERS);
-        mat_free(expected_output_layer);
-        mat_free(input_layer);
-        mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);
-        mat_array_free(weight_matrix_derivative_sum, NUMBER_OF_LAYERS);
-        network_free(layer, NUMBER_OF_LAYERS);
-        free(layer);
-        mat_free(expected_outputs_matrix);
-        mat_free(input_matrix);
-        return status;
+        cleanup:
+            mat_array_free(matrix_z, NUMBER_OF_LAYERS);
+            mat_free(expected_output_layer);
+            mat_free(input_layer);
+            mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);
+            mat_array_free(weight_matrix_derivative_sum, NUMBER_OF_LAYERS);
+            network_free(layer, NUMBER_OF_LAYERS);
+            free(layer);
+            mat_free(expected_outputs_matrix);
+            mat_free(input_matrix);
+            return status;
     }
+
 
 /*
     Training with backpropagation pseudocode:

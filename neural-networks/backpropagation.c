@@ -2,7 +2,7 @@
 /*
  * neural-network.c
  * Author: Zubin Chowdhury (GitHub: @ZubinCH)
- * Date: 18.11.2026
+ * Date: 19.11.2026
  * Purpose: A scalable neural network program built in C. 
  * It can handle any any number of inputs, number of layers (within reason), neurons per layer, and provide the desired number of outputs.
  * Only the training function has been built so far.
@@ -62,7 +62,7 @@ double activation_function_derivative(double z, char function_choice) {
         case 's':
             return 0;
         case 'o':
-            return (exp(-z) / (1.0 + exp(-z)) * (1.0 + exp(-z)));
+            return (exp(-z) / ((1.0 + exp(-z)) * (1.0 + exp(-z))));
         case 'r':
             if (z < 0) return 0;
             return 1;
@@ -90,12 +90,13 @@ void mat_apply_activation_function_derivative(mat *z, char function_choice) {
 
 
 void network_free(LAYER *layer, size_t count) {
-    for (size_t i = count; i >= 0; i--) {
+    for (size_t i = 1; i < count; i++) {
         mat_free(layer[i].weights);
         mat_free(layer[i].bias);
         mat_free(layer[i].neuron);
-        free(&layer[i]);
     }
+    
+    free(layer);
 }
 
 
@@ -137,7 +138,7 @@ void load_matrix_with_file(mat *mt, FILE *file) {
     size_t m = 0;
 
     while(fgets(line, sizeof(line), file) && m < m_max) {
-        line[strcspn(line, '\n')] = '\0';
+        line[strcspn(line, "\n")] = '\0';
         char *token = strtok(line, ",");
         if (!token) {
             printf("Failed to tokenise.\n");
@@ -164,7 +165,7 @@ void load_mat_array_with_file(size_t NUMBER_OF_MATRICES, mat **matrices, FILE *f
         size_t m_max = matrices[i]->rows;
         size_t n_max = matrices[i]->cols;
 
-        line[strscpn(line, '\n')] = '\0';
+        line[strcspn(line, "\n")] = '\0';
         char *token = strtok(line, ",");
         if (!token) {
             printf("Failed to tokenise.\n");
@@ -210,6 +211,7 @@ bool train(
         mat *input_layer = NULL;
         mat *expected_output_layer = NULL;
         mat **matrix_z = NULL;
+        mat *input_layer = NULL;
 
         // Check for whether the function successfully performed all necessary operations
         bool status = false;
@@ -225,7 +227,7 @@ bool train(
         // Open input data and expected output files
 
         // Load inputs, tokenise and store into matrix
-        FILE *input_file = fopen(input_data, 'r');
+        FILE *input_file = fopen(input_data, "r");
         if (!input_file) {
             printf("Failed to open %s.\n", input_data);
             return false;
@@ -239,7 +241,7 @@ bool train(
         fclose(input_file);
 
         // Load expected outputs, tokenise and store into matrix
-        FILE *expected_outputs_file = fopen(expected_outputs, 'r');
+        FILE *expected_outputs_file = fopen(expected_outputs, "r");
         if (!expected_outputs_file) {
             printf("Failed to open %s.\n", expected_outputs);
             mat_free(input_matrix);
@@ -286,8 +288,8 @@ bool train(
                 goto cleanup;
             }
 
-            initial_weights_selection(layer[i].weights, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
-            initial_weights_selection(layer[i].bias, 0, sqrt(2.0 / (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
+            initial_weights_selection(layer[i].weights, 0, sqrt(2.0 / (double) (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
+            initial_weights_selection(layer[i].bias, 0, sqrt(2.0 / (double) (NUMBER_OF_INPUT_NEURONS + NUMBER_OF_EXPECTED_OUTPUTS)));
         }
 
         // End of data initialisation
@@ -303,7 +305,7 @@ bool train(
                     for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[L - 1]; k++) {
                         mat_input(0, j, k, weight_matrix_derivative_sum[L]);
                     }
-                    mat_input(0, j, 0, weight_matrix_derivative_sum[L]);
+                    mat_input(0, j, 0, bias_vector_derivative_sum[L]);
                 }
 
             }
@@ -339,7 +341,7 @@ bool train(
                     initial_cost_sum += (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j)) * 
                         (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
                 }
-                cost_sum += (1 / 2 * NUMBER_OF_EXPECTED_OUTPUTS) * initial_cost_sum;
+                cost_sum += (1.0 / (2.0 * (double) NUMBER_OF_EXPECTED_OUTPUTS) ) * initial_cost_sum;
 
 
                 // calculate cost function gradients of output layer
@@ -351,9 +353,9 @@ bool train(
                     double z_over_weights = 0;
 
                     for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[NUMBER_OF_LAYERS - 2]; k++) {
-                        cost_over_final_layer[j] = (1 / NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
+                        cost_over_final_layer[j] = (1.0 / (double) NUMBER_OF_EXPECTED_OUTPUTS) * (mat_select(final_layer_neurons, j, 0) - mat_select(expected_output_layer, 0, j));
                         layerj_over_z = mat_select(matrix_z[NUMBER_OF_LAYERS - 1], j, 0);
-                        z_over_weights = mat_select(final_layer_neurons, k, 1);
+                        z_over_weights = mat_select(final_layer_neurons, k, 0);
 
                         double product_of_derivatives = cost_over_final_layer[j] * layerj_over_z * z_over_weights;
 
@@ -365,14 +367,14 @@ bool train(
 
                 // backward pass through neural network
 
-                double previous_layer_neuron_sum[NUMBER_OF_LAYERS - 2];
+                double previous_layer_neuron_sum[NUMBER_OF_LAYERS - 1];
 
-                for (size_t L = NUMBER_OF_LAYERS - 2; L > 0; L--) {
+                for (int L = NUMBER_OF_LAYERS - 2; L > 0; L--) {
                     for (size_t k = 0; k < NUMBER_OF_NEURONS_IN_LAYER[L]; k++) {
 
                         previous_layer_neuron_sum[L - 1] = 0;
-                        if (L = NUMBER_OF_LAYERS - 2) {
-                            for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L + 1]; j++) {
+                        if (L == NUMBER_OF_LAYERS - 2) {
+                            for (size_t j = 0; j < NUMBER_OF_EXPECTED_OUTPUTS; j++) {
                                 previous_layer_neuron_sum[L - 1] += cost_over_final_layer[j] 
                                 * mat_select(matrix_z[L + 1], j, 0) * mat_select(layer[L + 1].weights, j, k);
                             }
@@ -389,7 +391,7 @@ bool train(
                         for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L + 1]; j++) {
                             mat_input(mat_select(weight_matrix_derivative_sum[L], j, k) 
                             + previous_layer_neuron_sum[L - 1] * mat_select(matrix_z[L], k, 0) 
-                            * mat_select(layer[L].neuron, j, k),
+                            * mat_select(layer[L].neuron, k, 0),
                             j, k, weight_matrix_derivative_sum[L]);
                         }
 
@@ -398,6 +400,8 @@ bool train(
                             k, 0, bias_vector_derivative_sum[L]);
                     }
                 }
+
+                mat_free(layer[0].neuron);
             }
 
             // Compute average cost function
@@ -405,25 +409,26 @@ bool train(
             for (size_t L = 1; L < NUMBER_OF_LAYERS; L++) {
                 size_t total_elements = NUMBER_OF_NEURONS_IN_LAYER[L] * NUMBER_OF_NEURONS_IN_LAYER[L - 1];
                 for (size_t i = 0; i < total_elements; i++) {
-                    weight_matrix_derivative_sum[L]->arr[i] *= 1.0 / (NUMBER_OF_DATA);
+                    weight_matrix_derivative_sum[L]->arr[i] *= 1.0 / (double) (NUMBER_OF_DATA);
                     layer[L].weights->arr[i] -= LEARNING_RATE * weight_matrix_derivative_sum[L]->arr[i];
                 }
 
                 for (size_t j = 0; j < NUMBER_OF_NEURONS_IN_LAYER[L]; j++) {
-                    bias_vector_derivative_sum[L]->arr[j] *= 1.0 / (NUMBER_OF_DATA);
+                    bias_vector_derivative_sum[L]->arr[j] *= 1.0 / (double) (NUMBER_OF_DATA);
                     layer[L].bias->arr[j] -= LEARNING_RATE * bias_vector_derivative_sum[L]->arr[j];
                 }
             }
 
-            if (!cost_sum) fitted = 1;
+            cost_sum = cost_sum / (double) NUMBER_OF_DATA;
+            if (fabs(cost_sum) < 0.1) fitted = 1;
             if (fitted) break;
             iterations++;
         }
 
 
         // Output weights and biases into output files
-        FILE *output_weights_file = fopen(output_weights, 'w');
-        FILE *output_bias_file = fopen(output_bias, 'w');
+        FILE *output_weights_file = fopen(output_weights, "w");
+        FILE *output_bias_file = fopen(output_bias, "w");
         if (!output_weights_file) {
             printf("Failed to open output weights file.\n");
             goto cleanup;
@@ -459,13 +464,13 @@ bool train(
         status = true;
 
         cleanup:
+            mat_free(input_layer);
             mat_array_free(matrix_z, NUMBER_OF_LAYERS);
             mat_free(expected_output_layer);
             mat_free(input_layer);
             mat_array_free(bias_vector_derivative_sum, NUMBER_OF_LAYERS);
             mat_array_free(weight_matrix_derivative_sum, NUMBER_OF_LAYERS);
             network_free(layer, NUMBER_OF_LAYERS);
-            free(layer);
             mat_free(expected_outputs_matrix);
             mat_free(input_matrix);
             return status;
